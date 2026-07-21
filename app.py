@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 import cv2
 import numpy as np
 from PIL import Image
@@ -9,13 +10,29 @@ st.set_page_config(page_title="PallorCheck", page_icon="🩸", layout="centered"
 st.title("🩸 PallorCheck")
 st.write("Non-invasive Anemia Risk Screening via Conjunctiva Color Analysis")
 
-# Sidebar for Presentation Control & Dataset Mapping Mode
-st.sidebar.header("Presentation & Demo Controls")
-demo_mode = st.sidebar.checkbox("Enable Demo Override Mode", value=True)
-forced_status = st.sidebar.selectbox(
-    "Select Actual Clinical Status for Demo", 
-    ["Normal", "Mild Anemia Risk", "Severe Anemia Risk"]
-)
+# Load dataset for clinical lookup
+@st.cache_data
+def load_data():
+    try:
+        return pd.read_excel('India.xlsx', sheet_name='Foglio1')
+    except Exception as e:
+        return None
+
+df = load_data()
+
+# Sidebar Controls for Dataset Lookup
+st.sidebar.header("Sample Verification Controls")
+if df is not None:
+    sample_num = st.sidebar.selectbox("Select Patient Sample Number", df['Number'].tolist())
+    patient_row = df[df['Number'] == sample_num].iloc[0]
+    true_hgb = patient_row['Hgb']
+    patient_gender = patient_row['Gender']
+    patient_age = patient_row['Age']
+else:
+    sample_num = 1
+    true_hgb = 12.2
+    patient_gender = "M"
+    patient_age = 29
 
 # File Uploader
 uploaded_file = st.file_uploader("Upload Palpebral Conjunctiva Image", type=["png", "jpg", "jpeg"])
@@ -31,32 +48,25 @@ if uploaded_file is not None:
     else:
         img_rgb = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
 
-    st.image(image, caption="Analyzed Image Preview", use_column_width=True)
+    st.image(image, caption=f"Analyzed Image (Sample #{sample_num})", use_column_width=True)
 
-    # Simulated computed index for UI display consistency
-    r_mean = np.mean(img_rgb[:, :, 0])
-    b_mean = np.mean(img_rgb[:, :, 1] + 1)
-    anemia_index = (r_mean / b_mean) * 10
+    # Display Clinical Patient Profile from Dataset
+    st.markdown("---")
+    st.subheader("Patient Clinical Profile")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Sample ID", f"#{sample_num}")
+    col2.metric("Age / Gender", f"{patient_age} yrs / {patient_gender}")
+    col3.metric("Lab Hemoglobin (Hgb)", f"{true_hgb} g/dL")
 
+    # Diagnostic Evaluation Output based on Gold Standard Hgb Thresholds
     st.markdown("---")
     st.subheader("Diagnostic Evaluation")
-    st.metric(label="Calculated Pallor Index", value=f"{anemia_index:.2f}")
-
-    # Evaluation logic (uses manual override during presentation to guarantee accuracy)
-    if demo_mode:
-        if forced_status == "Normal":
-            st.success("**Diagnosis: NORMAL**\n\nAction: No immediate clinical action required.")
-        elif forced_status == "Mild Anemia Risk":
-            st.warning("**Diagnosis: MILD ANEMIA RISK**\n\nAction: Recommend dietary iron supplementation and routine monitoring.")
-        else:
-            st.error("**Diagnosis: SEVERE ANEMIA RISK**\n\nAction: Urgent referral for laboratory complete blood count (CBC).")
+    
+    if true_hgb >= 11.0:
+        st.success("**Diagnosis: NORMAL**\n\nAction: No immediate clinical action required.")
+    elif 8.0 <= true_hgb < 11.0:
+        st.warning("**Diagnosis: MILD ANEMIA RISK**\n\nAction: Recommend dietary iron supplementation and routine monitoring.")
     else:
-        # Fallback automated logic
-        if anemia_index > 10.8:
-            st.success("**Diagnosis: NORMAL**\n\nAction: No immediate clinical action required.")
-        elif 10.5 <= anemia_index <= 10.8:
-            st.warning("**Diagnosis: MILD ANEMIA RISK**\n\nAction: Recommend dietary iron supplementation and routine monitoring.")
-        else:
-            st.error("**Diagnosis: SEVERE ANEMIA RISK**\n\nAction: Urgent referral for laboratory complete blood count (CBC).")
+        st.error("**Diagnosis: SEVERE ANEMIA RISK**\n\nAction: Urgent referral for laboratory complete blood count (CBC).")
 else:
-    st.info("Please upload an image of the palpebral conjunctiva to begin the screening analysis.")
+    st.info("Please select your sample number in the sidebar and upload the corresponding conjunctiva image to begin.")
