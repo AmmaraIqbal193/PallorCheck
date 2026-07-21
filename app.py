@@ -19,16 +19,38 @@ st.warning(
 )
 
 # ---------------------------------------------------------------------------
-# Reference dataset — shown for context only
+# Reference dataset — shown for context only (NOT used to calibrate the
+# photo color formula below, since this file has no images — just Hgb,
+# Gender, Age). What it CAN do properly is classify each row using real,
+# gender-specific WHO cutoffs instead of one flat number for everyone.
+#
+# WHO Guideline on Haemoglobin Cutoffs to Define Anaemia (2024), adult
+# non-pregnant thresholds:
+#   Women (>=15y): normal >=12.0 | mild 11.0-11.9 | moderate 8.0-10.9 | severe <8.0
+#   Men   (>=15y): normal >=13.0 | mild 11.0-12.9 | moderate 8.0-10.9 | severe <8.0
+# Source: WHO 2024 guideline (iris.who.int/bitstream/handle/10665/376196/9789240088542-eng.pdf)
 # ---------------------------------------------------------------------------
+def classify_who(hgb, gender):
+    g = str(gender).strip().upper()
+    if g == 'F':
+        if hgb >= 12.0: return 'Normal'
+        if hgb >= 11.0: return 'Mild'
+        if hgb >= 8.0:  return 'Moderate'
+        return 'Severe'
+    else:  # 'M' (or unspecified — use the higher male cutoff as default)
+        if hgb >= 13.0: return 'Normal'
+        if hgb >= 11.0: return 'Mild'
+        if hgb >= 8.0:  return 'Moderate'
+        return 'Severe'
+
 @st.cache_data
 def get_reference_standards():
     try:
         df = pd.read_excel('India.xlsx', sheet_name='Foglio1')
-        normal_count = (df['Hgb'] >= 11.0).sum()
-        mild_count = ((df['Hgb'] >= 8.0) & (df['Hgb'] < 11.0)).sum()
-        severe_count = (df['Hgb'] < 8.0).sum()
-        return normal_count, mild_count, severe_count
+        df['WHO_Category'] = df.apply(lambda r: classify_who(r['Hgb'], r['Gender']), axis=1)
+        counts = df['WHO_Category'].value_counts().to_dict()
+        by_gender = df.groupby(['Gender', 'WHO_Category']).size().unstack(fill_value=0)
+        return counts, by_gender
     except Exception:
         return None
 
@@ -204,11 +226,15 @@ if uploaded_file is not None:
         st.error("**Estimated category: Possible elevated risk**\n\nConjunctiva color close to the sclera reference. A CBC blood test is the reliable way to confirm.")
 
     if ref_stats is not None:
-        normal_count, mild_count, severe_count = ref_stats
+        counts, by_gender = ref_stats
         st.markdown("---")
         st.caption(
-            f"Reference dataset (India.xlsx), shown for context only: "
-            f"{normal_count} normal, {mild_count} mild, {severe_count} severe by Hgb."
+            "Reference dataset (India.xlsx), classified using WHO 2024 "
+            "gender-specific Hgb cutoffs — shown for population context only, "
+            "not used to set the photo score thresholds above:"
         )
+        st.write({k: int(v) for k, v in counts.items()})
+        with st.expander("Breakdown by gender"):
+            st.dataframe(by_gender)
 else:
     st.info("Please upload a photograph of the eyelid conjunctiva to begin.")
