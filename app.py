@@ -99,15 +99,25 @@ def extract_features(patch_rgb):
     hsv = cv2.cvtColor(patch_rgb, cv2.COLOR_RGB2HSV)
     return float(np.median(lab[:, :, 1])), float(np.median(lab[:, :, 0])), float(np.median(hsv[:, :, 1]))
 
-def relative_pallor_score(conj_rgb, scl_rgb):
-    a_conj, l_conj, sat_conj = extract_features(conj_rgb)
-    a_scl, l_scl, sat_scl = extract_features(scl_rgb)
-
-    a_diff = a_conj - a_scl
-    sat_diff = sat_conj - sat_scl
-
-    score = (a_diff * 1.25) + (sat_diff * 0.75)
-    return score, {"a_diff": a_diff, "sat_diff": sat_diff}
+def conjunctiva_pallor_score(conj_rgb):
+    """
+    Measures the redness/saturation purely from the conjunctiva patch, 
+    matching your exact Colab calibration formula.
+    """
+    lab = cv2.cvtColor(conj_rgb, cv2.COLOR_RGB2LAB)
+    hsv = cv2.cvtColor(conj_rgb, cv2.COLOR_RGB2HSV)
+    
+    a_conj = float(np.median(lab[:, :, 1]))
+    sat_conj = float(np.median(hsv[:, :, 1]))
+    
+    # Your exact calibration formula
+    score = (a_conj * 1.25) + (sat_conj * 0.75)
+    
+    details = {
+        "a_conjunctiva": a_conj,
+        "sat_conjunctiva": sat_conj
+    }
+    return score, details
 
 # ---------------------------------------------------------------------------
 # Main Interface Layout
