@@ -1,5 +1,4 @@
 import streamlit as st
-import pandas as pd
 import cv2
 import numpy as np
 from PIL import Image
@@ -10,32 +9,8 @@ st.set_page_config(page_title="PallorCheck", page_icon="🩸", layout="centered"
 st.title("🩸 PallorCheck")
 st.write("Non-invasive Anemia Risk Screening via Conjunctiva Color Analysis")
 
-# Load dataset for clinical lookup
-@st.cache_data
-def load_data():
-    try:
-        return pd.read_excel('India.xlsx', sheet_name='Foglio1')
-    except Exception as e:
-        return None
-
-df = load_data()
-
-# Sidebar Controls for Dataset Lookup
-st.sidebar.header("Sample Verification Controls")
-if df is not None:
-    sample_num = st.sidebar.selectbox("Select Patient Sample Number", df['Number'].tolist())
-    patient_row = df[df['Number'] == sample_num].iloc[0]
-    true_hgb = patient_row['Hgb']
-    patient_gender = patient_row['Gender']
-    patient_age = patient_row['Age']
-else:
-    sample_num = 1
-    true_hgb = 12.2
-    patient_gender = "M"
-    patient_age = 29
-
-# File Uploader
-uploaded_file = st.file_uploader("Upload Palpebral Conjunctiva Image", type=["png", "jpg", "jpeg"])
+# File Uploader for live spot images
+uploaded_file = st.file_uploader("Upload or Capture Conjunctiva Image", type=["png", "jpg", "jpeg"])
 
 if uploaded_file is not None:
     image = Image.open(uploaded_file)
@@ -48,25 +23,36 @@ if uploaded_file is not None:
     else:
         img_rgb = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
 
-    st.image(image, caption=f"Analyzed Image (Sample #{sample_num})", use_column_width=True)
+    # Automatically crop the center region of interest (ROI) 
+    # to discard extra background skin, eyelashes, and edges from spot photos
+    h, w, _ = img_rgb.shape
+    ymin, ymax = int(h * 0.3), int(h * 0.7)
+    xmin, xmax = int(w * 0.3), int(w * 0.7)
+    conjunctiva_roi = img_rgb[ymin:ymax, xmin:xmax]
 
-    # Display Clinical Patient Profile from Dataset
-    st.markdown("---")
-    st.subheader("Patient Clinical Profile")
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Sample ID", f"#{sample_num}")
-    col2.metric("Age / Gender", f"{patient_age} yrs / {patient_gender}")
-    col3.metric("Lab Hemoglobin (Hgb)", f"{true_hgb} g/dL")
+    # Display previews
+    col1, col2 = st.columns(2)
+    with col1:
+        st.image(image, caption="Original Upload", use_column_width=True)
+    with col2:
+        st.image(conjunctiva_roi, caption="Isolated Conjunctiva ROI", use_column_width=True)
 
-    # Diagnostic Evaluation Output based on Gold Standard Hgb Thresholds
+    # Calculate robust color index from the isolated ROI
+    r_mean = np.mean(conjunctiva_roi[:, :, 0])
+    b_mean = np.mean(conjunctiva_roi[:, :, 2] + 1)
+    anemia_index = (r_mean / b_mean) * 10
+
+    # Diagnostic Evaluation Output
     st.markdown("---")
     st.subheader("Diagnostic Evaluation")
-    
-    if true_hgb >= 11.0:
+    st.metric(label="Calculated Pallor Index", value=f"{anemia_index:.2f}")
+
+    # Automated clinical threshold evaluation for live users
+    if anemia_index > 10.8:
         st.success("**Diagnosis: NORMAL**\n\nAction: No immediate clinical action required.")
-    elif 8.0 <= true_hgb < 11.0:
+    elif 10.3 <= anemia_index <= 10.8:
         st.warning("**Diagnosis: MILD ANEMIA RISK**\n\nAction: Recommend dietary iron supplementation and routine monitoring.")
     else:
         st.error("**Diagnosis: SEVERE ANEMIA RISK**\n\nAction: Urgent referral for laboratory complete blood count (CBC).")
 else:
-    st.info("Please select your sample number in the sidebar and upload the corresponding conjunctiva image to begin.")
+    st.info("Please upload a photograph of the eyelid conjunctiva to begin automated screening.")
