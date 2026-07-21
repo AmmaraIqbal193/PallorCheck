@@ -51,9 +51,9 @@ if uploaded_file is not None:
     st.metric(label="Calculated Redness Index", value=f"{anemia_index:.2f}%")
 
     # Threshold evaluation logic
-   if anemia_index > 38.0:
-    st.success("**Diagnosis: NORMAL**\n\nAction: No immediate clinical action required.")
-elif 34.0 <= anemia_index <= 38.0:
-    st.warning("**Diagnosis: MILD ANEMIA RISK**\n\nAction: Recommend dietary iron supplementation and routine monitoring.")
-else:
-    st.error("**Diagnosis: SEVERE ANEMIA RISK**\n\nAction: Urgent referral for laboratory complete blood count (CBC).")
+    if anemia_index > 38.0:
+        st.success("**Diagnosis: NORMAL**\n\nAction: No immediate clinical action required.")
+    elif 34.0 <= anemia_index <= 38.0:
+        st.warning("**Diagnosis: MILD ANEMIA RISK**\n\nAction: Recommend dietary iron supplementation and routine monitoring.")
+    else:
+        st.error("**Diagnosis: SEVERE ANEMIA RISK**\n\nAction: Urgent referral for laboratory complete blood count (CBC).")
