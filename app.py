@@ -150,13 +150,13 @@ if uploaded_file is not None:
     st.subheader("Analysis Result")
     st.metric(label="Calculated Pallor Score", value=f"{score:.2f}")
 
-   # Risk evaluation using your dataset thresholds
+  # Risk evaluation using your dataset thresholds
     if score >= TH_HIGH:
         st.success("**Estimated Category: Normal / Lower Risk**\n\nConjunctiva color indicates adequate redness.")
     elif TH_LOW <= score < TH_HIGH:
         st.warning("**Estimated Category: Mild Risk / Borderline**\n\nConsider consulting a healthcare provider if symptoms persist.")
     else:
-        st.error("**Estimated Category: Elevated Risk / Moderate-Severe**\n\nConjunctiva color shows high pallor. A CBC blood test is recommended.") if score > TH_HIGH:
+        st.error("**Estimated Category: Elevated Risk / Moderate-Severe**\n\nConjunctiva color shows high pallor. A CBC blood test is recommended.")
        
     if ref_stats is not None:
         counts, by_gender = ref_stats
