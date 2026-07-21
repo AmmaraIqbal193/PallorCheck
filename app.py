@@ -64,7 +64,8 @@ def load_eye_cascade():
 
 def detect_eye_box(img_rgb, eye_cascade):
     gray = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY)
-    eyes = eye_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=6, minSize=(40, 40))
+    # Lowered minNeighbors and minSize to be much more forgiving on eye detection
+    eyes = eye_cascade.detectMultiScale(gray, scaleFactor=1.05, minNeighbors=3, minSize=(20, 20))
     if len(eyes) == 0:
         return None
     return max(eyes, key=lambda b: b[2] * b[3])
