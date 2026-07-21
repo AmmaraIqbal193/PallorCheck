@@ -144,8 +144,8 @@ if uploaded_file is not None:
     if not detected:
         st.info("Eye not detected automatically — used fallback crops. For best results, use a close-up, well-lit photo.")
 
-    score, details = relative_pallor_score(conj_roi, scl_roi)
-
+    score, details = conjunctiva_pallor_score(conj_roi)
+    
     st.markdown("---")
     st.subheader("Analysis Result")
     st.metric(label="Calculated Pallor Score", value=f"{score:.2f}")
