@@ -64,7 +64,6 @@ def load_eye_cascade():
 
 def detect_eye_box(img_rgb, eye_cascade):
     gray = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY)
-    # Lowered minNeighbors and minSize to be much more forgiving on eye detection
     eyes = eye_cascade.detectMultiScale(gray, scaleFactor=1.05, minNeighbors=3, minSize=(20, 20))
     if len(eyes) == 0:
         return None
@@ -72,9 +71,12 @@ def detect_eye_box(img_rgb, eye_cascade):
 
 def get_regions(img_rgb, eye_box):
     h, w, _ = img_rgb.shape
+    # If the eye detector fails, assume the user's uploaded image 
+    # is a close-up crop of the eye, and target the lower-inner lid directly.
     if eye_box is None:
-        return img_rgb[int(h * 0.40):int(h * 0.60), int(w * 0.40):int(w * 0.60)], \
-               img_rgb[int(h * 0.25):int(h * 0.35), int(w * 0.40):int(w * 0.60)], False
+        conj = img_rgb[int(h * 0.50):int(h * 0.90), int(w * 0.20):int(w * 0.80)]
+        scl = img_rgb[int(h * 0.10):int(h * 0.40), int(w * 0.20):int(w * 0.80)]
+        return conj, scl, False
 
     ex, ey, ew, eh = eye_box
     cy0, cy1 = ey + int(eh * 0.55), ey + int(eh * 0.95)
